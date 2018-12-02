@@ -32,14 +32,9 @@ nrow(pudg_tr)
 
 ```{r}
 #modify the winpoint and kill point based on rank point
-for(i in 1:nrow(pudg_tr)){
-  if(pudg_tr$winPoints[i] == 0 & pudg_tr$rankPoints[i] == -1){
-    pudg_tr$winPoints[i] <- NA
-  }
-  if(pudg_tr$killPoints[i] == 0 & pudg_tr$rankPoints[i] == -1){
-    pudg_tr$killPoints[i] <- NA
-  }
-}
+pudg_tr$winPoints = ifelse(pudg_tr$winPoints == 0 & pudg_tr$rankPoints != -1, NA, pudg_tr$winPoints)
+pudg_tr$killPoints = ifelse(pudg_tr$killPoints == 0 & pudg_tr$rankPoints != -1, NA, pudg_tr$killPoints)
+
 
 ```
 
@@ -66,6 +61,14 @@ pudg_group <- pudg_tr %>%
   
 ```
 
+```{r}
+pudg_group <- pudg_group %>%
+  mutate(KADistance = (kills + assists)/distance, 
+         KADuration = (kills + assists)/duration,
+         KillstraksperKills = killStreaks/kills,
+         itemDuration = (boosts + heals + weaponsAcquired)/duration,
+         itemDistance = (boosts + heals + weaponsAcquired)/distance)
+```
 
 ```{r}
 write_csv(pudg_group, "./all/train_group.csv")
