@@ -1,0 +1,73 @@
+---
+title: "pudg"
+author: "Lumi Huang"
+date: "12/1/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+setwd(".")
+pudg_tr <- read_csv("./all/train_V2.csv")
+```
+drop missing value
+```{r}
+pudg_tr <- pudg_tr %>% drop_na()
+```
+
+filter duo
+```{r}
+pudg_tr <- pudg_tr %>%
+  filter(matchType == 'duo'| matchType == 'normal-duo-fpp' | 
+           matchType == 'normal-duo' | matchType == 'duo-fpp')
+nrow(pudg_tr)
+```
+
+```{r}
+for(i in 1:nrow(pudg_tr)){
+  if(pudg_tr$winPoints[i] == 0 & pudg_tr$rankPoints[i] == -1){
+    pudg_tr$winPoints[i] <- NA
+  }
+  if(pudg_tr$killPoints[i] == 0 & pudg_tr$rankPoints[i] == -1){
+    pudg_tr$killPoints[i] <- NA
+  }
+}
+
+
+```
+
+```{r}
+pudg_group <- pudg_tr %>%
+  select(Id, groupId, matchId, assists, boosts, damageDealt, DBNOs, headshotKills,
+         heals, killPlace, killPoints, kills, killStreaks, longestKill, maxPlace, numGroups,
+         revives, rideDistance, roadKills, swimDistance, teamKills, vehicleDestroys, walkDistance,
+         weaponsAcquired, winPoints, winPlacePerc) %>%
+  group_by(groupId) %>%
+  summarise(teamsize = n(), matchId = max(matchId, na.rm = TRUE), assists = sum(assists, na.rm = TRUE),
+            boosts = sum(boosts, na.rm = TRUE), damageDealt = sum(damageDealt, na.rm = TRUE), 
+            DBNOs = sum(DBNOs, na.rm = TRUE), headshotKills = sum(headshotKills, na.rm = TRUE),
+            heals = sum(heals, na.rm = TRUE), killPlace = sum(killPlace, na.rm = TRUE), 
+            killPoints = max(killPoints, na.rm = TRUE), kills = sum(kills, na.rm = TRUE), 
+            killStreaks = mean(killStreaks, na.rm = TRUE), longestKill = mean(longestKill, na.rm = TRUE),
+            maxPlace = max(maxPlace, na.rm = TRUE), numGroups = mean(numGroups, na.rm = TRUE), 
+            revives = sum(revives, na.rm = TRUE), rideDistance = max(rideDistance, na.rm = TRUE), 
+            roadKills = sum(roadKills, na.rm = TRUE), swimDistance = max(swimDistance, na.rm = TRUE),
+            teamKills = sum(teamKills, na.rm = TRUE), vehicleDestroys = sum(vehicleDestroys, na.rm = TRUE), 
+            walkDistance = max(walkDistance, na.rm = TRUE), 
+            weaponsAcquired = sum(weaponsAcquired, na.rm = TRUE), 
+            winPoints = max(winPoints, na.rm = TRUE), winPlacePerc = mean(winPlacePerc, na.rm = TRUE))
+  
+```
+
+
+```{r}
+write_csv(pudg_group, "./all/train_group.csv")
+```
+
