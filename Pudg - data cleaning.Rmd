@@ -31,6 +31,7 @@ nrow(pudg_tr)
 ```
 
 ```{r}
+#modify the winpoint and kill point based on rank point
 for(i in 1:nrow(pudg_tr)){
   if(pudg_tr$winPoints[i] == 0 & pudg_tr$rankPoints[i] == -1){
     pudg_tr$winPoints[i] <- NA
@@ -39,7 +40,6 @@ for(i in 1:nrow(pudg_tr)){
     pudg_tr$killPoints[i] <- NA
   }
 }
-
 
 ```
 
