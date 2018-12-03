@@ -65,7 +65,7 @@ pudg_group <- pudg_tr %>%
 ```{r}
 pudg_group <- pudg_group %>%
   mutate(KADistance = (kills + assists)/walkDistance, 
-         KADuration = (kills + assists)/matchduration,
+         KADuration = (kills + assists)/matchDuration,
          KillstreaksperKills = killStreaks/kills,
          itemDuration = (boosts + heals + weaponsAcquired)/matchDuration,
          itemDistance = (boosts + heals + weaponsAcquired)/walkDistance)
