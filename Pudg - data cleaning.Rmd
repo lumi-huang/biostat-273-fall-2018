@@ -1,5 +1,5 @@
 ---
-title: "pudg"
+title: "pubg"
 author: "Lumi Huang"
 date: "12/1/2018"
 output: html_document
@@ -15,35 +15,36 @@ library(tidyverse)
 
 ```{r}
 setwd(".")
-pudg_tr <- read_csv("./all/train_V2.csv")
+pubg_tr <- read_csv("./all/train_V2.csv")
 ```
 drop missing value
 ```{r}
-pudg_tr <- pudg_tr %>% drop_na()
+pubg_tr <- pubg_tr %>% drop_na()
 ```
 
 filter duo
 ```{r}
-pudg_tr <- pudg_tr %>%
+pubg_tr <- pubg_tr %>%
   filter(matchType == 'duo'| matchType == 'normal-duo-fpp' | 
            matchType == 'normal-duo' | matchType == 'duo-fpp')
-nrow(pudg_tr)
+nrow(pubg_tr)
 ```
 
 ```{r}
 #modify the winpoint and kill point based on rank point
-pudg_tr$winPoints = ifelse(pudg_tr$winPoints == 0 & pudg_tr$rankPoints != -1, NA, pudg_tr$winPoints)
-pudg_tr$killPoints = ifelse(pudg_tr$killPoints == 0 & pudg_tr$rankPoints != -1, NA, pudg_tr$killPoints)
+pubg_tr$winPoints = ifelse(pubg_tr$winPoints == 0 & pubg_tr$rankPoints != -1, NA, pubg_tr$winPoints)
+pubg_tr$killPoints = ifelse(pubg_tr$killPoints == 0 & pubg_tr$rankPoints != -1, NA, pubg_tr$killPoints)
 
 
 ```
 
 ```{r}
-pudg_group <- pudg_tr %>%
+pubg_group <- pubg_tr %>%
   select(Id, groupId, matchId, assists, boosts, damageDealt, DBNOs, headshotKills,
          heals, killPlace, killPoints, kills, killStreaks, longestKill, maxPlace, numGroups,
          revives, rideDistance, roadKills, swimDistance, teamKills, vehicleDestroys, walkDistance,
          weaponsAcquired, winPoints, winPlacePerc, matchDuration) %>%
+  distinct() %>%
   group_by(matchId, groupId) %>%
   summarise(teamsize = n(), assists = sum(assists, na.rm = TRUE),
             boosts = sum(boosts, na.rm = TRUE), damageDealt = sum(damageDealt, na.rm = TRUE), 
@@ -61,11 +62,17 @@ pudg_group <- pudg_tr %>%
             matchDuration = mean(matchDuration, na.rm = TRUE),
             winPoints = ifelse(is.finite(max(winPoints, na.rm = TRUE)), max(winPoints), NA),
             winPlacePerc = mean(winPlacePerc, na.rm = TRUE))
-  
+nrow(pubg_group)
 ```
 
 ```{r}
-pudg_group <- pudg_group %>%
+pubg_group <- pubg_group %>% 
+  filter(teamsize <= 2)
+nrow(pubg_group)
+```
+
+```{r}
+pubg_group <- pubg_group %>%
   mutate(KADistance = (kills + assists)/walkDistance, 
          KADuration = (kills + assists)/matchDuration,
          KillstreaksperKills = killStreaks/kills,
@@ -74,6 +81,6 @@ pudg_group <- pudg_group %>%
 ```
 
 ```{r}
-write_csv(pudg_group, "./all/train_group.csv")
+write_csv(pubg_group, "./all/train_group.csv")
 ```
 
