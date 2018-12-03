@@ -43,7 +43,7 @@ pudg_group <- pudg_tr %>%
   select(Id, groupId, matchId, assists, boosts, damageDealt, DBNOs, headshotKills,
          heals, killPlace, killPoints, kills, killStreaks, longestKill, maxPlace, numGroups,
          revives, rideDistance, roadKills, swimDistance, teamKills, vehicleDestroys, walkDistance,
-         weaponsAcquired, winPoints, winPlacePerc) %>%
+         weaponsAcquired, winPoints, winPlacePerc, matchDuration) %>%
   group_by(groupId) %>%
   summarise(teamsize = n(), matchId = max(matchId, na.rm = TRUE), assists = sum(assists, na.rm = TRUE),
             boosts = sum(boosts, na.rm = TRUE), damageDealt = sum(damageDealt, na.rm = TRUE), 
@@ -57,17 +57,18 @@ pudg_group <- pudg_tr %>%
             teamKills = sum(teamKills, na.rm = TRUE), vehicleDestroys = sum(vehicleDestroys, na.rm = TRUE), 
             walkDistance = max(walkDistance, na.rm = TRUE), 
             weaponsAcquired = sum(weaponsAcquired, na.rm = TRUE), 
+            matchDuration = max(matchDuration, na.rm = TRUE),
             winPoints = max(winPoints, na.rm = TRUE), winPlacePerc = mean(winPlacePerc, na.rm = TRUE))
   
 ```
 
 ```{r}
 pudg_group <- pudg_group %>%
-  mutate(KADistance = (kills + assists)/distance, 
-         KADuration = (kills + assists)/duration,
-         KillstraksperKills = killStreaks/kills,
-         itemDuration = (boosts + heals + weaponsAcquired)/duration,
-         itemDistance = (boosts + heals + weaponsAcquired)/distance)
+  mutate(KADistance = (kills + assists)/walkDistance, 
+         KADuration = (kills + assists)/matchduration,
+         KillstreaksperKills = killStreaks/kills,
+         itemDuration = (boosts + heals + weaponsAcquired)/matchDuration,
+         itemDistance = (boosts + heals + weaponsAcquired)/walkDistance)
 ```
 
 ```{r}
