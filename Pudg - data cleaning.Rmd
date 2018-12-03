@@ -44,12 +44,13 @@ pudg_group <- pudg_tr %>%
          heals, killPlace, killPoints, kills, killStreaks, longestKill, maxPlace, numGroups,
          revives, rideDistance, roadKills, swimDistance, teamKills, vehicleDestroys, walkDistance,
          weaponsAcquired, winPoints, winPlacePerc, matchDuration) %>%
-  group_by(groupId) %>%
-  summarise(teamsize = n(), matchId = max(matchId, na.rm = TRUE), assists = sum(assists, na.rm = TRUE),
+  group_by(matchId, groupId) %>%
+  summarise(teamsize = n(), assists = sum(assists, na.rm = TRUE),
             boosts = sum(boosts, na.rm = TRUE), damageDealt = sum(damageDealt, na.rm = TRUE), 
             DBNOs = sum(DBNOs, na.rm = TRUE), headshotKills = sum(headshotKills, na.rm = TRUE),
             heals = sum(heals, na.rm = TRUE), killPlace = sum(killPlace, na.rm = TRUE), 
-            killPoints = max(killPoints, na.rm = TRUE), kills = sum(kills, na.rm = TRUE), 
+            killPoints = ifelse(is.finite(max(killPoints, na.rm = TRUE)), max(killPoints), NA),
+            kills = sum(kills, na.rm = TRUE), 
             killStreaks = mean(killStreaks, na.rm = TRUE), longestKill = mean(longestKill, na.rm = TRUE),
             maxPlace = max(maxPlace, na.rm = TRUE), numGroups = mean(numGroups, na.rm = TRUE), 
             revives = sum(revives, na.rm = TRUE), rideDistance = max(rideDistance, na.rm = TRUE), 
@@ -57,8 +58,9 @@ pudg_group <- pudg_tr %>%
             teamKills = sum(teamKills, na.rm = TRUE), vehicleDestroys = sum(vehicleDestroys, na.rm = TRUE), 
             walkDistance = max(walkDistance, na.rm = TRUE), 
             weaponsAcquired = sum(weaponsAcquired, na.rm = TRUE), 
-            matchDuration = max(matchDuration, na.rm = TRUE),
-            winPoints = max(winPoints, na.rm = TRUE), winPlacePerc = mean(winPlacePerc, na.rm = TRUE))
+            matchDuration = mean(matchDuration, na.rm = TRUE),
+            winPoints = ifelse(is.finite(max(winPoints, na.rm = TRUE)), max(winPoints), NA),
+            winPlacePerc = mean(winPlacePerc, na.rm = TRUE))
   
 ```
 
