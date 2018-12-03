@@ -1,0 +1,72 @@
+---
+title: "biostat 273 - pubg"
+author: "Landi Luo"
+date: "12/3/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load packages:
+```{r, message=FALSE}
+if (!require("pacman"))  
+  install.packages("pacman", repos = "http://cran.us.r-project.org/")
+p_load("tidyverse", "GGally", "caret", "glmnet")
+```
+
+Read in data:
+```{r}
+# setwd("~/Documents/BIOSTAT 273")
+train_solo <- readRDS(file = "train_solo.rds")
+#test_solo <- readRDS(file = "test_solo.rds")
+```
+
+```{r}
+# drop Id
+train_solo <- select(train_solo, -Id)
+```
+
+## Correlation Matrix
+```{r}
+ggcorr(train_solo, hjust = 0.9, size = 3, color = "grey50",
+       label = TRUE, label_size = 2, layout.exp = 3)
+```
+
+Split `train_solo` data into training and validation sets
+```{r}
+set.seed(3456)
+trainIndex <- createDataPartition(train_solo$winPlacePerc, p = .8, list = FALSE, times = 1)
+head(trainIndex)
+
+pubgTrain <- train_solo[ trainIndex, ]
+pubgTest  <- train_solo[-trainIndex, ]
+```
+
+
+## OLS Regression
+```{r}
+fit_ols <- lm(winPlacePerc ~ ., data = pubgTrain)
+fit_ols$coefficients
+
+yhat_ols <- predict.lm(fit_ols, pubgTest)
+
+confine_predictions = function(x){
+  x = ifelse(x > 1, 1, x)
+  x = ifelse(x < 0, 0, x)
+}
+ 
+yhat_ols <- confine_predictions(yhat_ols)
+
+error <- pubgTest$winPlacePerc - yhat_ols
+mean(abs(error))
+
+# sqrt(mean(error^2)) # rmse is 0.097
+```
+The mean absolute error is 0.07.
+
+## Ridge Regression
+```{r}
+
+```
