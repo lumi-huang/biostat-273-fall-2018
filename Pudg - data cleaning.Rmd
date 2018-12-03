@@ -73,11 +73,10 @@ nrow(pubg_group)
 
 ```{r}
 pubg_group <- pubg_group %>%
-  mutate(KADistance = (kills + assists)/walkDistance, 
-         KADuration = (kills + assists)/matchDuration,
-         KillstreaksperKills = killStreaks/kills,
-         itemDuration = (boosts + heals + weaponsAcquired)/matchDuration,
-         itemDistance = (boosts + heals + weaponsAcquired)/walkDistance)
+  mutate(KADistance = (kills + assists)/(walkDistance + 1), 
+         KADuration = (kills + assists)/(matchDuration + 1),
+         itemDuration = (boosts + heals + weaponsAcquired)/ (matchDuration + 1),
+         itemDistance = (boosts + heals + weaponsAcquired)/(walkDistance + 1))
 ```
 
 ```{r}
