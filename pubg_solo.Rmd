@@ -70,10 +70,24 @@ The mean absolute error is 0.07.
 ```{r}
 # define predictors and outcome
 grep("winPlacePerc", colnames(pubgTrain))
-x = model.matrix(winPlacePerc ~ ., data = pubgTrain)[ ,-16]
-y = pubgTrain$winPlacePerc
+x_train = model.matrix(winPlacePerc ~ ., data = pubgTrain)[ ,-16]
+y_train = pubgTrain$winPlacePerc
 
-fit_ridge <- glmnet(x, y, alpha = 0)
+x_test = model.matrix(winPlacePerc ~ ., data = pubgTest)[ ,-16]
+y_test = pubgTest$winPlacePerc
 
+# cross validation for optimal lambda
+lambdas <- 10^seq(3, -2, by = -.1)
+cv_fit = cv.glmnet(x, y, alpha = 0, lambda = lambdas)
+opt_lambda = cv_fit$lambda.min
 
+mod_ridge <- glmnet(x_train, y_train, alpha = 0, lambda = opt_lambda)
+pred_ridge <- predict(mod_ridge, newx = x_test) %>% confine_predictions()
+
+error <- y_test - pred_ridge
+mean(abs(error))
 ```
+
+The mean absolute error is 0.092.
+
+
