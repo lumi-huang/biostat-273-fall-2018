@@ -13,7 +13,7 @@ Load packages:
 ```{r, message=FALSE}
 if (!require("pacman"))  
   install.packages("pacman", repos = "http://cran.us.r-project.org/")
-p_load("tidyverse", "GGally", "caret", "glmnet")
+p_load("tidyverse", "GGally", "caret", "glmnet", "randomForest", "xgboost")
 ```
 
 Read in data:
@@ -59,14 +59,16 @@ confine_predictions = function(x){
  
 pred_ols <- confine_predictions(pred_ols)
 
-error <- pubgTest$winPlacePerc - pred_ols
-mean(abs(error))
-
+#error <- pubgTest$winPlacePerc - pred_ols
+#mean(abs(error))
 # sqrt(mean(error^2)) # rmse is 0.097
-```
-The mean absolute error is 0.07.
 
-## Ridge Regression
+# MAE
+postResample(pred_ols, pubgTest$winPlacePerc)
+```
+The mean absolute error is `r mae`.
+
+## Ridge Regression 1
 ```{r}
 # define predictors and outcome
 grep("winPlacePerc", colnames(pubgTrain))
@@ -77,17 +79,77 @@ x_test = model.matrix(winPlacePerc ~ ., data = pubgTest)[ ,-16]
 y_test = pubgTest$winPlacePerc
 
 # cross validation for optimal lambda
+cv_fit <- cv.glmnet(x_train, y_train, alpha = 0)
+opt_lambda <- cv_fit$lambda.min 
+opt_lambda
+
+#grid = 10^seq(10, -2, length = 100)
+grid <- 10^seq(3, -2, by = -.1)
+mod_ridge <- glmnet(x_train, y_train, alpha = 0, lambda = grid, thresh = 1e-12)
+pred_ridge <- predict(mod_ridge, s = opt_lambda, newx = x_test) %>% confine_predictions()
+
+# MAE
+postResample(pred_ridge, y_test)
+```
+
+## Ridge Regression 2
+```{r}
+train_predictors <- select(pubgTrain, -winPlacePerc)
+test_predictors <- select(pubgTest, -winPlacePerc)
+
 lambdas <- 10^seq(3, -2, by = -.1)
+
+# Define training variables and outcome variable
+x = train_predictors %>% data.matrix()
+y = pubgTrain$winPlacePerc
+
+## Cross Validation to get optimal lambda for ridge regression
 cv_fit = cv.glmnet(x, y, alpha = 0, lambda = lambdas)
 opt_lambda = cv_fit$lambda.min
 
-mod_ridge <- glmnet(x_train, y_train, alpha = 0, lambda = opt_lambda)
-pred_ridge <- predict(mod_ridge, newx = x_test) %>% confine_predictions()
+m_ridge = glmnet(x, y, alpha = 0, lambda = opt_lambda)
+# Predict using held out test variables and outcome variable
+p_ridge = cbind(rep(1, nrow(pubgTest)), test_predictors) %>% as.matrix %*% 
+          as.matrix(coef(m_ridge)) %>% confine_predictions()
 
-error <- y_test - pred_ridge
-mean(abs(error))
+colnames(p_ridge) = c("p_ridge")
+
+postResample(p_ridge, pubgTest$winPlacePerc)
 ```
 
-The mean absolute error is 0.092.
+## Lasso Regression
+```{r}
+## Cross Validation to get optimal lambda for lasso regression
+cv_fit = cv.glmnet(x, y, alpha = 1, lambda = lambdas)
+opt_lambda = cv_fit$lambda.min
 
+m_ridge = glmnet(x, y, alpha = 1, lambda = opt_lambda)
+# Predict using held out test variables and outcome variable
+p_ridge = cbind(rep(1, nrow(pubgTest)), test_predictors) %>% as.matrix %*% 
+          as.matrix(coef(m_ridge)) %>% confine_predictions()
 
+colnames(p_ridge) = c("p_ridge")
+
+postResample(p_ridge, pubgTest$winPlacePerc)
+```
+
+## Random Forest
+```{r}
+train_predictors <- select(pubgTrain, -winPlacePerc)
+test_predictors <- select(pubgTest, -winPlacePerc)
+m_forest_100 = randomForest(train_predictors, pubgTrain$winPlacePerc, ntree = 100, do.trace = TRUE)
+m_forest_250 = randomForest(train_predictors, pubgTrain$winPlacePerc, ntree = 250, do.trace = TRUE)
+m_forest_500 = randomForest(train_predictors, pubgTrain$winPlacePerc, ntree = 500, do.trace = TRUE)
+
+p_forest = predict(m_forest_500, train_predictors)
+postResample(p_forest, pubgTest$winPlacePerc)
+```
+
+## Boosting
+```{r}
+m_boost = xgboost(as.matrix(train_predictors), pubgTrain$winPlacePerc, nrounds = 100)
+p_boost = predict(m_boost, as.matrix(test_predictors)) %>% confine_predictions
+#MAE(p_boost, pubgTest$winPlacePerc)
+
+postResample(p_boost, pubgTest$winPlacePerc)
+```
