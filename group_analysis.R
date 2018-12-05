@@ -3,6 +3,7 @@ library(corrplot)
 library(glmnet)
 library(randomForest)
 library(xgboost)
+library(e1071)
 
 pudg_tr = read_csv("/Users/Wesley/Desktop/BIOSTAT273/train_V2.csv")
 
@@ -21,15 +22,15 @@ pudg_tr$killPoints = ifelse(pudg_tr$killPoints == 0 & pudg_tr$rankPoints != -1, 
 
 # Filter by matchType (squad) and perform aggregrations
 squad = pudg_tr %>% filter(matchType == 'squad'| matchType == 'normal-squad-fpp' | 
-                       matchType == 'normal-squad' | matchType == 'duo-squad')
+                       matchType == 'normal-squad' | matchType == 'squad-fpp')
 
 squad_group = squad %>%
   select(Id, groupId, matchId, assists, boosts, damageDealt, DBNOs, headshotKills,
          heals, killPlace, killPoints, kills, killStreaks, longestKill, matchDuration, maxPlace, numGroups,
          revives, rideDistance, roadKills, swimDistance, teamKills, vehicleDestroys, walkDistance,
          weaponsAcquired, winPoints, winPlacePerc) %>%
-  group_by(groupId) %>%
-  summarise(teamsize = n(), matchId = max(matchId, na.rm = TRUE), assists = sum(assists, na.rm = TRUE),
+  group_by(groupId, matchId) %>%
+  summarise(teamsize = n(), assists = sum(assists, na.rm = TRUE),
           boosts = sum(boosts, na.rm = TRUE), damageDealt = sum(damageDealt, na.rm = TRUE), 
           DBNOs = sum(DBNOs, na.rm = TRUE), headshotKills = sum(headshotKills, na.rm = TRUE),
           heals = sum(heals, na.rm = TRUE), killPlace = sum(killPlace, na.rm = TRUE), 
@@ -37,19 +38,20 @@ squad_group = squad %>%
           killStreaks = mean(killStreaks, na.rm = TRUE), longestKill = mean(longestKill, na.rm = TRUE),
           matchDuration = mean(matchDuration, na.rm = TRUE), 
           maxPlace = max(maxPlace, na.rm = TRUE), numGroups = mean(numGroups, na.rm = TRUE), 
-          revives = sum(revives, na.rm = TRUE), rideDistance = max(rideDistance, na.rm = TRUE), 
-          roadKills = sum(roadKills, na.rm = TRUE), swimDistance = max(swimDistance, na.rm = TRUE),
+          revives = sum(revives, na.rm = TRUE), rideDistance = mean(rideDistance, na.rm = TRUE), 
+          roadKills = sum(roadKills, na.rm = TRUE), swimDistance = mean(swimDistance, na.rm = TRUE),
           teamKills = sum(teamKills, na.rm = TRUE), vehicleDestroys = sum(vehicleDestroys, na.rm = TRUE), 
-          walkDistance = max(walkDistance, na.rm = TRUE), 
+          walkDistance = mean(walkDistance, na.rm = TRUE), 
           weaponsAcquired = sum(weaponsAcquired, na.rm = TRUE), 
-          winPoints = ifelse(is.finite(max(winPoints, na.rm = TRUE)), max(winPoints, na.rm = TRUE), NA) , winPlacePerc = mean(winPlacePerc, na.rm = TRUE))
+          winPoints = ifelse(is.finite(max(winPoints, na.rm = TRUE)), max(winPoints, na.rm = TRUE), NA), winPlacePerc = mean(winPlacePerc, na.rm = TRUE)) %>%
+  ungroup()
 
 # Add aggregate features here
 squad_group = squad_group %>% mutate(killsAssistsByDistance = (kills + assists) / (walkDistance + 1),
                                      killsAssistsByDuration = (kills + assists) / (matchDuration + 1),
                                      itemsByDistance = (boosts + heals + weaponsAcquired) / (walkDistance + 1), 
                                      itemsByDuration = (boosts + heals + weaponsAcquired) / (matchDuration + 1)) %>%
-                              select(-kills, - assists, -boosts, - heals, - weaponsAcquired, -killPoints, -winPoints)
+                              select(-kills, -teamsize, - assists, -boosts, - heals, - weaponsAcquired, -killPoints, -winPoints)
 
 
 # Seperate ID and variables
@@ -124,11 +126,16 @@ colnames(p_lasso) = c("p_lasso")
 MAE(p_lasso, squad_group_test$winPlacePerc)
 
 #################### 4. Random Forest ####################
-m_forest_100 = randomForest(squad_group_train[,variables], squad_group_train$winPlacePerc, ntree = 100, do.trace = TRUE)
-m_forest_250 = randomForest(squad_group_train[,variables], squad_group_train$winPlacePerc, ntree = 250, do.trace = TRUE)
-m_forest_500 = randomForest(squad_group_train[,variables], squad_group_train$winPlacePerc, ntree = 500, do.trace = TRUE)
+library(foreach)
+library(randomForest)
+rf <- foreach(ntree = rep(1, 4), .combine = combine, .packages = "randomForest") %dopar% 
+  randomForest(select(squad_group_train, variables, -winPlacePerc), squad_group_train$winPlacePerc, ntree = ntree, do.trace = TRUE)
 
-p_forest = predict(m_forest_500, squad_group_test[,variables])
+m_forest_100 = randomForest(select(squad_group_train, variables, -winPlacePerc), squad_group_train$winPlacePerc, ntree = 5, do.trace = TRUE)
+m_forest_250 = randomForest(select(squad_group_train, variables, -winPlacePerc), squad_group_train$winPlacePerc, ntree = 250, do.trace = TRUE)
+m_forest_500 = randomForest(select(squad_group_train, variables, -winPlacePerc), squad_group_train$winPlacePerc, ntree = 500, do.trace = TRUE)
+
+p_forest = predict(m_forest_100, squad_group_test[,variables])
 MAE(p_forest, squad_group_test$winPlacePerc)
 
 
@@ -137,9 +144,10 @@ m_boost = xgboost(as.matrix(select(squad_group_train, variables, -winPlacePerc))
 p_boost = predict(m_boost, as.matrix(select(squad_group_test, variables, -winPlacePerc))) %>% confine_predictions
 MAE(p_boost, squad_group_test$winPlacePerc)
 
-
 ## Merge back with Original Dataset ##
-results_table = cbind(squad_group_test %>% select(matchId, groupId), p_boost, p_forest, p_lasso, p_ridge, p_linear)
+p_ensemble = cbind(p_boost, p_lasso, p_ridge, p_linear) %>% apply(1, mean)
+
+results_table = cbind(squad_group_test %>% select(matchId, groupId), p_boost, p_forest, p_lasso, p_ridge, p_linear, p_ensemble)
 complete_table = left_join(squad, results_table, by = c("matchId", "groupId"))
 id_prediction_table = filter(complete_table, !is.na(p_boost)) 
 
